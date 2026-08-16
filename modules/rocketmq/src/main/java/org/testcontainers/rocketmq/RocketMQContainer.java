@@ -15,15 +15,17 @@ import java.time.Duration;
  * <p>
  * Supported images: {@code apache/rocketmq}
  * <p>
- * Exposed ports:
+ * Exposed ports (each bound to the same fixed host port, because the proxy
+ * advertises {@code 127.0.0.1:<container port>} in its route responses, so
+ * clients only work when the host ports match the container ports):
  * <ul>
- *     <li>gRPC (5.x clients): 8081 (random host port)</li>
- *     <li>Remoting (4.x clients): 8080 (fixed host port 8080 — only one
- *     RocketMQContainer may run at a time per Docker host, and startup also
- *     fails if anything else on the host already binds port 8080. The remoting
- *     endpoint also assumes tests reach the container via localhost, so it does
- *     not work with a remote Docker daemon)</li>
+ *     <li>gRPC (5.x clients): 8081</li>
+ *     <li>Remoting (4.x clients): 8080</li>
  * </ul>
+ * As a consequence, only one RocketMQContainer may run at a time per Docker
+ * host, startup fails if anything else on the host already binds port 8080 or
+ * 8081, and tests must reach the container via localhost (this does not work
+ * with a remote Docker daemon).
  */
 public class RocketMQContainer extends GenericContainer<RocketMQContainer> {
 
@@ -43,9 +45,9 @@ public class RocketMQContainer extends GenericContainer<RocketMQContainer> {
         super(dockerImageName);
         dockerImageName.assertCompatibleWith(DEFAULT_IMAGE_NAME);
 
-        addExposedPort(GRPC_PORT);
-        // Remoting route responses always advertise remotingListenPort (see
-        // GetTopicRouteActivity), so the host port must be fixed at 8080.
+        // Route responses always advertise the container ports (see class
+        // javadoc), so the host ports must be fixed.
+        addFixedExposedPort(GRPC_PORT, GRPC_PORT);
         addFixedExposedPort(REMOTING_PORT, REMOTING_PORT);
 
         withEnv("JAVA_OPT_EXT", "-Xms512m -Xmx512m");

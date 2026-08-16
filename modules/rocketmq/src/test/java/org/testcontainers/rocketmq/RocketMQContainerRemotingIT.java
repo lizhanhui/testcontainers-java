@@ -10,10 +10,12 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 
 @Testcontainers
 class RocketMQContainerRemotingIT {
@@ -25,6 +27,31 @@ class RocketMQContainerRemotingIT {
     void produceAndConsumeViaRemoting() throws Exception {
         String topic = "remoting-test-topic";
         CountDownLatch received = new CountDownLatch(1);
+
+        // Topic auto-creation does not work through the proxy's remoting route
+        // lookups, so create the topic up front. mqadmin exits 0 even on
+        // failure, and the embedded broker registers its topic configs with
+        // the NameServer asynchronously, so poll until the topic route is
+        // actually visible.
+        await("topic route registered")
+            .atMost(Duration.ofSeconds(60))
+            .until(() -> {
+                rocketmq.execInContainer(
+                    "sh",
+                    "-c",
+                    "sh $ROCKETMQ_HOME/bin/mqadmin updateTopic -n 127.0.0.1:9876 -c DefaultCluster -t " +
+                    topic +
+                    " >/dev/null 2>&1"
+                );
+                return rocketmq
+                    .execInContainer(
+                        "sh",
+                        "-c",
+                        "sh $ROCKETMQ_HOME/bin/mqadmin topicRoute -n 127.0.0.1:9876 -t " + topic
+                    )
+                    .getStdout()
+                    .contains("brokerDatas");
+            });
 
         DefaultMQProducer producer = new DefaultMQProducer("remoting-test-producer");
         producer.setNamesrvAddr(rocketmq.getRemotingEndpoints());
