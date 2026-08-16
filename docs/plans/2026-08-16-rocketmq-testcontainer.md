@@ -8,6 +8,8 @@
 
 **Tech Stack:** Java 8 target (repo default toolchain Java 17), Gradle, JUnit 5, `org.apache.rocketmq:rocketmq-client-java:5.0.5` (gRPC, test-only), `org.apache.rocketmq:rocketmq-client:4.9.7` (remoting, test-only).
 
+> **Revision (during implementation):** the LOCAL-mode premise below was falsified by Task 4 testing — in LOCAL mode the proxy ignores `useEndpointPortFromRequest` and advertises `brokerIP1:grpcServerPort` (`127.0.0.1:8081`) in gRPC route responses, unreachable from the host under random port mapping. **Shipped topology:** single container running NameServer + standalone Broker + **cluster-mode** Proxy (`"proxyMode": "CLUSTER"` pinned in `rmq-proxy.json`); the entrypoint starts namesrv → broker → waits for broker registration → starts the proxy. Cluster mode honors `useEndpointPortFromRequest`, so gRPC random ports work as designed. Also discovered: the 5.x gRPC client fetches topic routes eagerly at startup, so the ITs pre-create topics via `mqadmin` and poll `topicRoute` output for visibility (mqadmin exits 0 even on failure — exit codes are not assertable). Remaining plan text below is superseded where it conflicts.
+
 ---
 
 ## Locked-in technical decisions (verified against /data/repo/rocketmq source)
