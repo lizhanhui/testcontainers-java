@@ -15,17 +15,18 @@ import java.time.Duration;
  * <p>
  * Supported images: {@code apache/rocketmq}
  * <p>
- * Exposed ports (each bound to the same fixed host port, because the proxy
- * advertises {@code 127.0.0.1:<container port>} in its route responses, so
- * clients only work when the host ports match the container ports):
+ * Exposed ports:
  * <ul>
- *     <li>gRPC (5.x clients): 8081</li>
- *     <li>Remoting (4.x clients): 8080</li>
+ *     <li>gRPC (5.x clients): 8081 (random host port; the cluster-mode proxy
+ *     echoes the client-dialed endpoints in route responses, so any host port
+ *     works)</li>
+ *     <li>Remoting (4.x clients): 8080 (fixed host port 8080 — the proxy
+ *     always advertises {@code remotingAccessAddr:remotingListenPort}, so the
+ *     host port must match. Only one RocketMQContainer may run at a time per
+ *     Docker host, startup fails if anything else on the host already binds
+ *     port 8080, and tests must reach the container via localhost, so remoting
+ *     does not work with a remote Docker daemon)</li>
  * </ul>
- * As a consequence, only one RocketMQContainer may run at a time per Docker
- * host, startup fails if anything else on the host already binds port 8080 or
- * 8081, and tests must reach the container via localhost (this does not work
- * with a remote Docker daemon).
  */
 public class RocketMQContainer extends GenericContainer<RocketMQContainer> {
 
@@ -45,9 +46,9 @@ public class RocketMQContainer extends GenericContainer<RocketMQContainer> {
         super(dockerImageName);
         dockerImageName.assertCompatibleWith(DEFAULT_IMAGE_NAME);
 
-        // Route responses always advertise the container ports (see class
-        // javadoc), so the host ports must be fixed.
-        addFixedExposedPort(GRPC_PORT, GRPC_PORT);
+        addExposedPort(GRPC_PORT);
+        // Remoting route responses always advertise remotingListenPort (see
+        // GetTopicRouteActivity), so the host port must be fixed at 8080.
         addFixedExposedPort(REMOTING_PORT, REMOTING_PORT);
 
         withEnv("JAVA_OPT_EXT", "-Xms512m -Xmx512m");
@@ -87,5 +88,25 @@ public class RocketMQContainer extends GenericContainer<RocketMQContainer> {
      */
     public String getRemotingEndpoints() {
         return getHost() + ":" + getMappedPort(REMOTING_PORT);
+    }
+
+    /**
+     * Replace the broker configuration (broker.conf) used by the broker.
+     *
+     * @param brokerConfig the broker config file to copy into the container
+     * @return this
+     */
+    public RocketMQContainer withBrokerConfig(MountableFile brokerConfig) {
+        return withCopyFileToContainer(brokerConfig, TC_DIR + "/broker.conf");
+    }
+
+    /**
+     * Replace the proxy configuration (rmq-proxy.json).
+     *
+     * @param proxyConfig the proxy config file to copy into the container
+     * @return this
+     */
+    public RocketMQContainer withProxyConfig(MountableFile proxyConfig) {
+        return withCopyFileToContainer(proxyConfig, TC_DIR + "/rmq-proxy.json");
     }
 }
