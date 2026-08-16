@@ -21,6 +21,9 @@ until grep -q "boot success" /tmp/namesrv-console.log; do
 done
 echo "NameServer is up"
 
+# Note: mqproxy/runserver.sh launches the JVM without exec, so java is not PID 1
+# and won't receive SIGTERM from docker stop; container stop relies on the kill
+# timeout / Ryuk force-removal (accepted trade-off for test containers).
 exec sh "$ROCKETMQ_HOME/bin/mqproxy" -pm local -n 127.0.0.1:9876 \
   -bc /tmp/testcontainers/broker.conf \
   -pc /tmp/testcontainers/rmq-proxy.json
