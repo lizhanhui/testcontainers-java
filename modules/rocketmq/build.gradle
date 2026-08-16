@@ -1,0 +1,10 @@
+description = "Testcontainers :: RocketMQ"
+
+dependencies {
+    api project(':testcontainers')
+
+    testImplementation project(':testcontainers-junit-jupiter')
+    testImplementation 'org.apache.rocketmq:rocketmq-client-java:5.0.5'
+    testImplementation 'org.apache.rocketmq:rocketmq-client:4.9.7'
+    testImplementation 'org.awaitility:awaitility:4.3.0'
+}
