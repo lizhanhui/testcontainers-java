@@ -5,26 +5,29 @@ import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.utility.DockerImageName;
 import org.testcontainers.utility.MountableFile;
 
+import java.time.Duration;
+
 /**
  * Testcontainers implementation for Apache RocketMQ 5.x.
  * <p>
  * Runs a single container with a NameServer and a Proxy in LOCAL mode
  * (the Broker is embedded in the Proxy process).
  * <p>
- * Supported image: {@code apache/rocketmq}
+ * Supported images: {@code apache/rocketmq}
  * <p>
  * Exposed ports:
  * <ul>
  *     <li>gRPC (5.x clients): 8081 (random host port)</li>
  *     <li>Remoting (4.x clients): 8080 (fixed host port 8080 — only one
- *     RocketMQContainer may run at a time per Docker host)</li>
+ *     RocketMQContainer may run at a time per Docker host, and startup also
+ *     fails if anything else on the host already binds port 8080. The remoting
+ *     endpoint also assumes tests reach the container via localhost, so it does
+ *     not work with a remote Docker daemon)</li>
  * </ul>
  */
 public class RocketMQContainer extends GenericContainer<RocketMQContainer> {
 
     private static final DockerImageName DEFAULT_IMAGE_NAME = DockerImageName.parse("apache/rocketmq");
-
-    private static final String DEFAULT_TAG = "5.3.4";
 
     private static final int GRPC_PORT = 8081;
 
@@ -59,12 +62,16 @@ public class RocketMQContainer extends GenericContainer<RocketMQContainer> {
             TC_DIR + "/rmq-proxy.json"
         );
         withCreateContainerCmdModifier(cmd -> cmd.withEntrypoint("sh", TC_DIR + "/entrypoint.sh"));
-        waitingFor(Wait.forLogMessage(".*rocketmq-proxy startup successfully.*", 1));
+        waitingFor(
+            Wait.forLogMessage(".*rocketmq-proxy startup successfully.*", 1).withStartupTimeout(Duration.ofMinutes(2))
+        );
     }
 
     /**
      * Endpoints for the RocketMQ 5.x gRPC client ({@code rocketmq-client-java}),
      * in the form {@code host:port}.
+     *
+     * @return the gRPC endpoints
      */
     public String getGrpcEndpoints() {
         return getHost() + ":" + getMappedPort(GRPC_PORT);
@@ -73,6 +80,8 @@ public class RocketMQContainer extends GenericContainer<RocketMQContainer> {
     /**
      * Nameserver address for 4.x remoting clients ({@code rocketmq-client}),
      * in the form {@code host:port}. Points at the proxy's remoting port.
+     *
+     * @return the remoting endpoints
      */
     public String getRemotingEndpoints() {
         return getHost() + ":" + getMappedPort(REMOTING_PORT);
