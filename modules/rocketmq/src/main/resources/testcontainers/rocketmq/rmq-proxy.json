@@ -1,5 +1,6 @@
 {
   "rocketMQClusterName": "DefaultCluster",
+  "proxyMode": "CLUSTER",
   "useEndpointPortFromRequest": true,
   "remotingAccessAddr": "127.0.0.1"
 }
