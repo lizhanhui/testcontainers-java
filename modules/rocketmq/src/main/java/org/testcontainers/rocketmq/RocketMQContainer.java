@@ -10,8 +10,8 @@ import java.time.Duration;
 /**
  * Testcontainers implementation for Apache RocketMQ 5.x.
  * <p>
- * Runs a single container with a NameServer and a Proxy in LOCAL mode
- * (the Broker is embedded in the Proxy process).
+ * Runs a single container with a NameServer, a Broker, and a Proxy in
+ * cluster mode (all intra-container traffic on 127.0.0.1).
  * <p>
  * Supported images: {@code apache/rocketmq}
  * <p>
