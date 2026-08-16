@@ -1,7 +1,23 @@
 # RocketMQ 5.0 Testcontainers Module — Design
 
 Date: 2026-08-16
-Status: Approved (design phase)
+Status: Implemented (revised during implementation — see below)
+
+## Revision (2026-08-16, implementation)
+
+The topology changed from Proxy `LOCAL` mode to three processes in one
+container: NameServer + Broker + Proxy in **cluster** mode. In local mode the
+proxy answers gRPC `QueryRoute` with `brokerIP1:grpcServerPort`
+(`LocalTopicRouteService` ignores the client-dialed endpoints), i.e.
+`127.0.0.1:8081`, which is unreachable from the host under random port
+mapping. In cluster mode the proxy echoes the client-dialed endpoints
+(`useEndpointPortFromRequest`), so gRPC keeps a random host port; only
+remoting needs the fixed 8080 mapping. Two additional findings: the
+cluster-mode proxy must not start before the broker registers with the
+NameServer (it creates system topics at startup), and topics must be created
+explicitly (5.x clients fetch routes eagerly; the proxy does not synthesize
+routes for auto-created topics, and auto-created topics get message type
+`UNSPECIFIED` which the 5.3 broker rejects for `NORMAL` messages).
 
 ## Goal
 

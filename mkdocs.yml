@@ -103,6 +103,7 @@ nav:
           - modules/qdrant.md
           - modules/rabbitmq.md
           - modules/redpanda.md
+          - modules/rocketmq.md
           - modules/solace.md
           - modules/solr.md
           - modules/toxiproxy.md
